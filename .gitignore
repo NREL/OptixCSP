@@ -1,2 +1,6 @@
 plotting/timing/timing_results.log
 .vscode/settings.json
+build_scripts/
+build-optixCSP/
+Clean and Rebuild-OptixCSP.bat
+CMakeFiles/
