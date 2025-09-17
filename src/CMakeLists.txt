@@ -7,6 +7,11 @@
 # ---------------------------------------------------------------------------
 add_library(OptixCSP_core SHARED)
 
+# Enable automatic symbol export for Windows
+set_target_properties(OptixCSP_core PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
+
 find_package(CUDAToolkit REQUIRED)
 find_package(OptiX REQUIRED)
 message(STATUS "OptiX include directory: ${OptiX_INCLUDE}")
