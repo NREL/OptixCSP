@@ -85,7 +85,7 @@ cd build
 cmake \
   -DCMAKE_BUILD_TYPE=Release \
   -DOptiX_INCLUDE="$HOME/Optix8.0/include" \
-  -DOptix_INSTALL_DIR="$HOME/Optix8.0/"
+  -DOptiX_INSTALL_DIR="$HOME/Optix8.0/"
   ..
 
 # build
