@@ -44,6 +44,8 @@ namespace OptixCSP {
         void write_sun_output(const std::string& filename);
         // write all the hit points to a file
         void write_hp_output(const std::string& filename);
+        // Get all hit points
+        void get_hp_output(std::vector<float4>& hp_vec);
         // write simulation summary to a file, including receiver stats, etc
 		void write_simulation_json(const std::string& filename);
 		// get number of rays hitting the receiver

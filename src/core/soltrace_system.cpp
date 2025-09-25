@@ -287,7 +287,50 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
     std::cout << "Data successfully written to " << filename << std::endl;
 }
 
+void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec)
+{
+    int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
+    std::vector<float4> hp_output_buffer(output_size);
+    CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
 
+    int currentRay = 1;
+    int stage = 0;
+
+    for (const auto& element : hp_output_buffer) {
+
+        // Inline check: if y, z, and w are all zero, treat as marker for new ray.
+        if ((element.y == 0) && (element.z == 0) && (element.w == 0)) {
+            if (stage > 0) {
+                currentRay++;
+                stage = 0;
+            }
+            continue;  // Skip printing this marker element.
+        }
+
+        // If we haven't reached max_trace stages for the current ray, print the element.
+        if (stage < data_manager->launch_params_H.max_depth) {
+            //outFile << currentRay << ","
+            //    << element.x << "," << element.y << ","
+            //    << element.z << "," << element.w << "\n";
+            hp_vec.push_back(element);
+            stage++;
+        }
+        else {
+            // If max_trace stages reached, move to next ray and reset stage counter.
+            currentRay++;
+            stage = 0;
+            //outFile << currentRay << ","
+            //    << element.x << "," << element.y << ","
+            //    << element.z << "," << element.w << "\n";
+            hp_vec.push_back(element);
+            stage++;
+        }
+
+
+    }
+
+    return;
+}
 
 // write json output file for post processing
 // need sun vector, number of rays, sun box, sun angle
