@@ -4,3 +4,5 @@ build_scripts/
 build-optixCSP/
 Clean and Rebuild-OptixCSP.bat
 CMakeFiles/
+data/sun_error_0_hit_points_10000_rays.csv
+data/sun_error_0_summary_10000_rays.json

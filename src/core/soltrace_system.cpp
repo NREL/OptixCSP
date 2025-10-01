@@ -287,7 +287,7 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
     std::cout << "Data successfully written to " << filename << std::endl;
 }
 
-void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec)
+void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec, std::vector<int>& raynumber_vec)
 {
     int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
     std::vector<float4> hp_output_buffer(output_size);
@@ -313,6 +313,7 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec)
             //    << element.x << "," << element.y << ","
             //    << element.z << "," << element.w << "\n";
             hp_vec.push_back(element);
+            raynumber_vec.push_back(currentRay);
             stage++;
         }
         else {
@@ -323,6 +324,7 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec)
             //    << element.x << "," << element.y << ","
             //    << element.z << "," << element.w << "\n";
             hp_vec.push_back(element);
+            raynumber_vec.push_back(currentRay);
             stage++;
         }
 
