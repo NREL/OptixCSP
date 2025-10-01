@@ -5,13 +5,18 @@
 # ---------------------------------------------------------------------------
 # core target
 # ---------------------------------------------------------------------------
-add_library(OptixCSP_core SHARED)
+if(WIN32)
+  add_library(OptixCSP_core STATIC)
+else()
+  add_library(OptixCSP_core SHARED)
+endif()
 
 # Enable automatic symbol export for Windows
 set_target_properties(OptixCSP_core PROPERTIES
     WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
+target_link_libraries(OptixCSP_core PRIVATE CUDA::cuda_driver CUDA::cudart)  # or cudart_static   
 find_package(CUDAToolkit REQUIRED)
 find_package(OptiX REQUIRED)
 message(STATUS "OptiX include directory: ${OptiX_INCLUDE}")

@@ -52,14 +52,33 @@ void GeometryManager::collect_geometry_info(const std::vector<std::shared_ptr<Cs
 
             if (element->get_surface_type() == SurfaceType::PARABOLIC) {
                 sbt_offset = static_cast<uint32_t>(OpticalEntityType::RECTANGLE_PARABOLIC_MIRROR);
+                // no receiver only mirrors
             }
             else if (element->get_surface_type() == SurfaceType::FLAT) {
-                sbt_offset = static_cast<uint32_t>(OpticalEntityType::RECTANGLE_FLAT_MIRROR);
+                if (element->is_receiver())
+                    sbt_offset = static_cast<uint32_t>(OpticalEntityType::RECTANGLE_FLAT_RECEIVER);
+                else 
+					sbt_offset = static_cast<uint32_t>(OpticalEntityType::RECTANGLE_FLAT_MIRROR);
             }
-            else {
-                // print error message 
-                std::cerr << "Unknown surface type for element " << i << std::endl;
+            else if (element->get_surface_type() == SurfaceType::CYLINDER){
+                sbt_offset = static_cast<uint32_t>(OpticalEntityType::CYLINDRICAL_RECEIVER);
             }
+			else {
+            }
+        }
+
+        if (element->get_aperture_type() == ApertureType::TRIANGLE) {
+            element->compute_bounding_box();
+            m_min.x = (float)(element->get_lower_bounding_box()[0]);
+            m_min.y = (float)(element->get_lower_bounding_box()[1]);
+			m_min.z = (float)(element->get_lower_bounding_box()[2]);
+			m_max.x = (float)(element->get_upper_bounding_box()[0]);
+			m_max.y = (float)(element->get_upper_bounding_box()[1]);
+			m_max.z = (float)(element->get_upper_bounding_box()[2]);
+
+            if (element->is_receiver())
+                sbt_offset = static_cast<uint32_t>(OpticalEntityType::TRIANGLE_FLAT_RECEIVER);
+
         }
 
 
@@ -75,21 +94,6 @@ void GeometryManager::collect_geometry_info(const std::vector<std::shared_ptr<Cs
 		m_aabb_list_H[i] = aabb; // Store the AABB in the list
         m_sbt_index_H[i] = sbt_offset; // Store the SBT index
         m_geometry_data_array_H[i] = element_list[i]->toDeviceGeometryData();
-    }
-
-
-    // add receiver sbt_index
-	std::shared_ptr<CspElement> receiver = element_list[m_obj_counts - 1];
-
-    if (receiver->get_surface_type() == SurfaceType::FLAT) {
-        m_sbt_index_H[m_obj_counts -1] = static_cast<uint32_t>(OpticalEntityType::RECTANGLE_FLAT_RECEIVER);
-    }
-    else if (receiver->get_surface_type() == SurfaceType::CYLINDER) {
-        m_sbt_index_H[m_obj_counts -1] = static_cast<uint32_t>(OpticalEntityType::CYLINDRICAL_RECEIVER);
-    }
-    else {
-		// print error message 
-		std::cerr << "Error: Unknown surface type for receiver " << std::endl; 
     }
 
     // print out computed minimum distance 
