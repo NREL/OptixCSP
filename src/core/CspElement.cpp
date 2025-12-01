@@ -22,6 +22,12 @@ CspElement::CspElement() {
     m_zrot = 0.0;
     m_surface = nullptr;
     m_aperture = nullptr;
+    m_receiver = false;
+    m_reflectivity = 1.0f;
+    m_transmissivity = 1.0f;
+    m_slope_error = 0.0f;
+	m_specularity_error = 0.0f;
+    m_use_refraction = false;
 }
 
 // set and get origin 
@@ -163,6 +169,26 @@ GeometryDataST CspElement::toDeviceGeometryData() const {
 		}
     }
 
+    if (aperture_type == ApertureType::TRIANGLE) {
+
+		Vec3d v1, v2, v3;
+		// first cast to ApertureTriangle type
+		ApertureTriangle tri = static_cast<ApertureTriangle&>(*m_aperture);
+
+		v1 = tri.get_v0();
+		v2 = tri.get_v1();
+		v3 = tri.get_v2();
+
+		// given the origin and rotation, compute global coordinates of the triangle vertices
+		Matrix33d rotation_matrix = get_rotation_matrix();  // L2G rotation matrix
+		Vec3d v1_global = rotation_matrix * v1 + m_origin;
+		Vec3d v2_global = rotation_matrix * v2 + m_origin;
+		Vec3d v3_global = rotation_matrix * v3 + m_origin;
+
+		GeometryDataST::Triangle_Flat heliostat(OptixCSP::toFloat3(v1_global), OptixCSP::toFloat3(v2_global), OptixCSP::toFloat3(v3_global));
+		geometry_data.setTriangle_Flat(heliostat);        
+    }
+
     return geometry_data;
 }
 
@@ -270,9 +296,56 @@ void CspElement::compute_bounding_box() {
 	}
 
 
+    // bounding box for triangle aperture
+    if (aperture_type == ApertureType::TRIANGLE) {
+        // get the three vertices of the triangle aperture in local coordinates
+		// first cast to ApertureTriangle type
+		ApertureTriangle tri = static_cast<ApertureTriangle&>(*m_aperture);
+
+        Vec3d v1 = tri.get_v0();
+        Vec3d v2 = tri.get_v1();
+        Vec3d v3 = tri.get_v2();
+        // transform the vertices to the global frame
+        Vec3d v1_global = rotation_matrix * v1 + m_origin;
+        Vec3d v2_global = rotation_matrix * v2 + m_origin;
+        Vec3d v3_global = rotation_matrix * v3 + m_origin;
+        // now update the bounding box, need to find the min and max x, y, z
+        m_lower_box_bound[0] = fmin(fmin(v1_global[0], v2_global[0]), v3_global[0]);
+        m_lower_box_bound[1] = fmin(fmin(v1_global[1], v2_global[1]), v3_global[1]);
+        m_lower_box_bound[2] = fmin(fmin(v1_global[2], v2_global[2]), v3_global[2]);
+        m_upper_box_bound[0] = fmax(fmax(v1_global[0], v2_global[0]), v3_global[0]);
+        m_upper_box_bound[1] = fmax(fmax(v1_global[1], v2_global[1]), v3_global[1]);
+        m_upper_box_bound[2] = fmax(fmax(v1_global[2], v2_global[2]), v3_global[2]);
+	}
 
 
 
 
+}
 
+
+
+bool CspElement::in_plane(const Vec3d& point) const {
+
+    // check if a point is inside the aperture of the surface
+    ApertureType aperture_type = m_aperture->get_aperture_type();
+    if (aperture_type == ApertureType::RECTANGLE) {
+        double width = m_aperture->get_width();
+        double height = m_aperture->get_height();
+        // get the rotation matrix
+        Matrix33d rotation_matrix = get_rotation_matrix();  // L2G rotation matrix
+        // transform the point to local coordinates
+        Vec3d point_local = rotation_matrix.transpose() * (point - m_origin);
+        // check if the point is inside the rectangle
+        if (point_local[0] >= -width / 2 && point_local[0] <= width / 2 &&
+            point_local[1] >= -height / 2 && point_local[1] <= height / 2 &&
+            std::abs(point_local[2]) < 1e-3) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // todo: do this for other aperture and surface types, not that this should be for post processing only
 }

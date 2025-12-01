@@ -28,6 +28,7 @@ namespace OptixCSP{
         RECTANGLE_PARABOLIC_MIRROR    = 1,
         RECTANGLE_FLAT_RECEIVER       = 2,
         CYLINDRICAL_RECEIVER          = 3,
+		TRIANGLE_FLAT_RECEIVER        = 4,
 	    NUM_OPTICAL_ENTITY_TYPES
     };
 
@@ -51,6 +52,7 @@ namespace OptixCSP{
         float3                      sun_v3;
 
 	    GeometryDataST*             geometry_data_array;
+		MaterialData*               material_data_array;
     };
 
     struct PerRayData
