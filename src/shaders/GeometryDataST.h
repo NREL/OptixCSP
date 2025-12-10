@@ -1,6 +1,6 @@
 #pragma once
 #include "device_util.h"
-#include "core/soltrace_constants.h"
+#include "soltrace_constants.h"
 #ifndef __CUDACC_RTC__
 #include <cassert>
 #include <cstdint>

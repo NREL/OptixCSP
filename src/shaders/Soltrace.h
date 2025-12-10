@@ -42,6 +42,7 @@ namespace OptixCSP{
         float3*                     sun_dir_buffer;
         OptixTraversableHandle      handle;
         int32_t*                    element_id_buffer;
+        uint8_t*                    hit_type_buffer;
 
         float3                      sun_vector;
         float                       max_sun_angle;

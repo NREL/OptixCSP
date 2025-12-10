@@ -244,7 +244,8 @@ int main(int argc, char* argv[]) {
     std::vector<float4> hp_vec;
     std::vector<int> raynumber_vec;
     std::vector<int> element_id_vec;
-    system.get_hp_output(hp_vec, raynumber_vec, element_id_vec);        
+    std::vector<uint8_t> hit_type_vec;
+    system.get_hp_output(hp_vec, raynumber_vec, element_id_vec, hit_type_vec);        
 
     /////////////////////////////////////////
     // STEP 6  Be a good citizen, clean up //

@@ -143,6 +143,14 @@ void SolTraceSystem::initialize() {
     ));
     CUDA_CHECK(cudaMemset(data_manager->launch_params_H.element_id_buffer, kElementIdBuffer, element_id_size));
 
+    // Allocate memory for hit type buffer, size is number of rays launched * depth
+    const size_t hit_type_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(uint8_t) * data_manager->launch_params_H.max_depth;
+    CUDA_CHECK(cudaMalloc(
+        reinterpret_cast<void**>(&data_manager->launch_params_H.hit_type_buffer),
+        hit_type_size
+    ));
+    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_type_buffer, kElementIdBuffer, hit_type_size));
+
 	// Luning TODO: Allocate memory for the direction cosine buffer, size is number of rays launched * depth
     const size_t sun_dir_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(float3);
 
@@ -196,9 +204,10 @@ void SolTraceSystem::run() {
 
 void SolTraceSystem::update() {
 
-
-    const size_t hit_point_buffer_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(float4) * data_manager->launch_params_H.max_depth;
-    const size_t element_id_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(int32_t) * data_manager->launch_params_H.max_depth;
+    const int N_slots = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
+    const size_t hit_point_buffer_size = N_slots * sizeof(float4);
+    const size_t element_id_size = N_slots * sizeof(int32_t);
+    const size_t hit_type_buffer_size = N_slots * sizeof(uint8_t);
 
     // update aabb and sun plane accordingly
 	geometry_manager->update_geometry_info(m_element_list, data_manager->launch_params_H);
@@ -207,6 +216,8 @@ void SolTraceSystem::update() {
 	data_manager->updateGeometryDataArray(geometry_manager->get_geometry_data_array());
     CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_point_buffer, 0, hit_point_buffer_size));
     CUDA_CHECK(cudaMemset(data_manager->launch_params_H.element_id_buffer, kElementIdBuffer, element_id_size));
+    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_type_buffer, HitType::HIT_UNASSIGNED, hit_type_buffer_size));
+
 	data_manager->updateLaunchParams();
 }
 
@@ -314,13 +325,16 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
 
 void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec, 
     std::vector<int>& raynumber_vec,
-    std::vector<int>& element_id_vec)
+    std::vector<int>& element_id_vec,
+    std::vector<uint8_t>& hit_type_vec)
 {
     int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
     std::vector<float4> hp_output_buffer(output_size);
     std::vector<int32_t> element_id_buffer(output_size);
+    std::vector<uint8_t> hit_type_buffer(output_size);
     CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(element_id_buffer.data(), data_manager->launch_params_H.element_id_buffer, output_size * sizeof(int32_t), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(hit_type_buffer.data(), data_manager->launch_params_H.hit_type_buffer, output_size * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
     int currentRay = 1;
     int stage = 0;
@@ -346,6 +360,7 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec,
             hp_vec.push_back(element);
             raynumber_vec.push_back(currentRay);
             element_id_vec.push_back(element_id_buffer[i]);
+            hit_type_vec.push_back(hit_type_buffer[i]);
             stage++;
         }
         else {
@@ -358,6 +373,7 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec,
             hp_vec.push_back(element);
             raynumber_vec.push_back(currentRay);
             element_id_vec.push_back(element_id_buffer[i]);
+            hit_type_vec.push_back(hit_type_buffer[i]);
             stage++;
         }
 
@@ -525,6 +541,7 @@ void SolTraceSystem::clean_up() {
     // Free device-side launch parameter memory
     CUDA_CHECK(cudaFree(reinterpret_cast<void*>(data_manager->launch_params_H.hit_point_buffer)));
     CUDA_CHECK(cudaFree(reinterpret_cast<void*>(data_manager->launch_params_H.element_id_buffer)));
+    CUDA_CHECK(cudaFree(reinterpret_cast<void*>(data_manager->launch_params_H.hit_type_buffer)));
     CUDA_CHECK(cudaFree(reinterpret_cast<void*>(data_manager->launch_params_H.sun_dir_buffer)));
 
     data_manager->cleanup();

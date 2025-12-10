@@ -3,6 +3,7 @@
 #include "Soltrace.h"
 #include <stdio.h>
 #include "MaterialDataST.h"
+#include "soltrace_constants.h"
 
 
 namespace OptixCSP {
@@ -71,6 +72,7 @@ extern "C" __global__ void __closesthit__mirror()
     // or get obsorbed. otherwise, it will get reflected.
     float3 new_dir;
 	bool absorbed = false;  // determine whether the ray is absorbed or not, this is montecarlo based, should be applied to reflection and refraction
+    uint8_t hit_type = OptixCSP::HitType::HIT_UNASSIGNED;
 
     if (use_transmmisivity) {
 		new_dir = refract(ray_dir, ffnormal);
@@ -79,12 +81,19 @@ extern "C" __global__ void __closesthit__mirror()
         uint32_t seed = seed = params.sun_dir_seed ^ (prd.ray_path_index * 0x9E3779B9u)   // golden ratio mix
             ^ (prd.depth * 0x85EBCA6Bu);
 		float xi = OptixCSP::rng_uniform(seed); // random number in [0,1)
-        if (xi > transmissivity) { absorbed = true; 
+        if (xi > transmissivity) { 
+            absorbed = true; 
+            hit_type = OptixCSP::HitType::HIT_ABSORB;
         //printf("ray is absorbed! ray index is %d, depth %d\n", prd.ray_path_index, prd.depth); 
         }   // ray is absorbed
+        else
+        {
+            hit_type = OptixCSP::HitType::HIT_TRANSMIT;
+        }
     }
     else {
 		new_dir = reflect(ray_dir, ffnormal);
+        hit_type = OptixCSP::HitType::HIT_REFLECT;
     }
 
     // Check if the maximum recursion depth has not been reached
@@ -99,6 +108,9 @@ extern "C" __global__ void __closesthit__mirror()
         // Store element id
         const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
         params.element_id_buffer[slot] = elementId;
+
+        // Store hit type
+        params.hit_type_buffer[slot] = hit_type;
 
         // Store the reflected direction in its buffer (used for visualization or further calculations)
         /*
@@ -163,6 +175,7 @@ extern "C" __global__ void __closesthit__receiver()
             params.hit_point_buffer[slot] = make_float4(new_depth, hit_point);
             const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
             params.element_id_buffer[slot] = elementId;
+            params.hit_type_buffer[slot] = OptixCSP::HitType::HIT_ABSORB;
 
             prd.depth = new_depth;
         }
@@ -210,6 +223,7 @@ extern "C" __global__ void __closesthit__receiver__cylinder__y()
             prd.depth = new_depth;
             const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
             params.element_id_buffer[slot] = elementId;
+            params.hit_type_buffer[slot] = OptixCSP::HitType::HIT_ABSORB;
         }
     //}
 
@@ -264,6 +278,7 @@ extern "C" __global__ void __closesthit__mirror__parabolic()
         params.hit_point_buffer[slot] = make_float4(new_depth, hit_point);
         const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
         params.element_id_buffer[slot] = elementId;
+        params.hit_type_buffer[slot] = OptixCSP::HitType::HIT_REFLECT;
 
         prd.depth = new_depth;
         optixTrace(
