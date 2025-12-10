@@ -1,7 +1,9 @@
 #pragma once
 #include "device_util.h"
+#include "core/soltrace_constants.h"
 #ifndef __CUDACC_RTC__
 #include <cassert>
+#include <cstdint>
 #else
 #define assert(x) /*nop*/
 #endif
@@ -189,6 +191,8 @@ namespace OptixCSP {
 
 
         Type type = UNKNOWN_TYPE;
+
+        int32_t id = OptixCSP::kElementIdUnassigned;
 
     private:
         union

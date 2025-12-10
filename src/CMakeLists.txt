@@ -78,6 +78,7 @@ foreach(shader ${SHADERS})
 #            -arch=sm_${DETECTED_COMPUTE_CAP}
             -arch=sm_80
             -I${OptiX_INCLUDE}      
+            -I${CMAKE_CURRENT_SOURCE_DIR}/core
             -DOPTIX_INCLUDE_INTERNAL_FUNCTIONS
             -ptx
             -o ${SHADER_PTX}

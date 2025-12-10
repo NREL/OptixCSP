@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
         e1->set_origin(origin_e1);
         e1->set_aim_point(aim_point_e1); // Aim direction
         e1->set_zrot(-90.0); // Set the rotation around the Z-axis
+        e1->set_id(1);
 
         ///////////////////////////////////////////
         // STEP 1.2 create the parabolic surface //
@@ -74,6 +75,7 @@ int main(int argc, char* argv[]) {
         e2->set_origin(origin_e2);
         e2->set_aim_point(aim_point_e2); // Aim direction
         e2->set_zrot(0.0); // No rotation for the element
+        e2->set_id(2);
 
         if (parabolic) {
             auto surface_e2 = std::make_shared<SurfaceParabolic>();
@@ -98,6 +100,7 @@ int main(int argc, char* argv[]) {
         e3->set_origin(origin_e3);
         e3->set_aim_point(aim_point_e3); // Aim direction
         e3->set_zrot(90.0);
+        e3->set_id(3);
 
         if (parabolic) {
             auto surface_e3 = std::make_shared<SurfaceParabolic>();
@@ -131,7 +134,7 @@ int main(int argc, char* argv[]) {
         e4->set_origin(receiver_origin);
         e4->set_aim_point(receiver_aim_point); // Aim direction
         e4->set_zrot(0.0); // No rotation for the receiver
-
+        e4->set_id(4);
 
         ///////////////////////////////////////////
         // STEP 2.2 create rectangle aperture    //
@@ -195,6 +198,7 @@ int main(int argc, char* argv[]) {
 		CspElement e5 = *e4; // Copy e4 to e5
         Vec3d p4(1.0, 0.5, 0);
         e5.set_aperture(std::make_shared<ApertureTriangle>(p3, p2, p4));
+        e5.set_id(5);
 		system.add_element(std::make_shared<CspElement>(e5)); // Add e5 to the system
 
     
@@ -236,6 +240,11 @@ int main(int argc, char* argv[]) {
 
     system.write_hp_output(out_dir + "sun_error_hit_points_" + to_string(num_rays) + "_rays.csv");
     system.write_simulation_json(out_dir + "sun_error_summary_" + to_string(num_rays) + "_rays.json");
+
+    std::vector<float4> hp_vec;
+    std::vector<int> raynumber_vec;
+    std::vector<int> element_id_vec;
+    system.get_hp_output(hp_vec, raynumber_vec, element_id_vec);        
 
     /////////////////////////////////////////
     // STEP 6  Be a good citizen, clean up //

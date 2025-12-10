@@ -11,7 +11,7 @@ namespace OptixCSP{
     const unsigned int NUM_ATTRIBUTE_VALUES = 4u;
     const unsigned int NUM_PAYLOAD_VALUES   = 2u;
     const unsigned int MAX_TRACE_DEPTH      = 5u;
-    
+
     struct HitGroupData
     {
         MaterialData material_data;
@@ -41,6 +41,7 @@ namespace OptixCSP{
         float4*                     hit_point_buffer;
         float3*                     sun_dir_buffer;
         OptixTraversableHandle      handle;
+        int32_t*                    element_id_buffer;
 
         float3                      sun_vector;
         float                       max_sun_angle;

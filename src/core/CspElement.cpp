@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "vec3d.h"
 #include "soltrace_type.h"
@@ -8,14 +9,16 @@
 #include "utils/math_util.h"
 #include "shaders/GeometryDataST.h"
 #include "CspElement.h"
-#include <vector>
+#include "soltrace_constants.h"
 
 
 using namespace OptixCSP;
 
-CspElementBase::CspElementBase() {}
+CspElementBase::CspElementBase()
+{}
 
-CspElement::CspElement() {
+CspElement::CspElement()
+{
     m_origin = Vec3d(0.0, 0.0, 0.0);
     m_aim_point = Vec3d(0.0, 0.0, 1.0); // Default aim direction
     m_euler_angles = Vec3d(0.0, 0.0, 0.0); // Default orientation
@@ -28,6 +31,7 @@ CspElement::CspElement() {
     m_slope_error = 0.0f;
 	m_specularity_error = 0.0f;
     m_use_refraction = false;
+    m_id = kElementIdUnassigned;
 }
 
 // set and get origin 
@@ -189,6 +193,8 @@ GeometryDataST CspElement::toDeviceGeometryData() const {
 		geometry_data.setTriangle_Flat(heliostat);        
     }
 
+    geometry_data.id = this->m_id;
+
     return geometry_data;
 }
 
@@ -348,4 +354,9 @@ bool CspElement::in_plane(const Vec3d& point) const {
     }
 
     // todo: do this for other aperture and surface types, not that this should be for post processing only
+}
+
+void CspElement::set_id(const int32_t id)
+{
+    this->m_id = id;
 }

@@ -38,6 +38,8 @@ namespace OptixCSP {
 		bool is_receiver() const { return m_receiver; }
         bool m_receiver; // true if receiver, false if not, you can think of receiver as the last element in the optical path
 
+        virtual void set_id(const int32_t id) = 0;
+
     protected:
         // Derived classes must implement bounding box computation.
         //virtual int set_bounding_box() = 0;
@@ -109,6 +111,8 @@ namespace OptixCSP {
 		// check if a point is inside the surface aperture
 		bool in_plane(const Vec3d& point) const;
 
+        // Set id
+        void set_id(const int32_t id) override;
 
     private:
         Vec3d m_origin;
@@ -129,5 +133,7 @@ namespace OptixCSP {
 		float m_specularity_error;
 		bool m_use_refraction; // for now, if true, ray goes through the object, otherwise it reflects
 
+        // Element id (from soltrace)
+        int32_t m_id;
     };
 }

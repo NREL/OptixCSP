@@ -89,8 +89,17 @@ extern "C" __global__ void __closesthit__mirror()
 
     // Check if the maximum recursion depth has not been reached
     if (new_depth < params.max_depth) {
+
+        // Get buffer slot
+        const int slot = params.max_depth * prd.ray_path_index + new_depth;
+
         // Store the hit point in the hit point buffer (used for visualization or further calculations)
-        params.hit_point_buffer[params.max_depth * prd.ray_path_index + new_depth] = make_float4(new_depth, hit_point);
+        params.hit_point_buffer[slot] = make_float4(new_depth, hit_point);
+
+        // Store element id
+        const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
+        params.element_id_buffer[slot] = elementId;
+
         // Store the reflected direction in its buffer (used for visualization or further calculations)
         /*
         params.reflected_dir_buffer[params.max_depth * prd.ray_path_index + new_depth] = make_float4(1.0f, reflected_dir);
@@ -150,7 +159,11 @@ extern "C" __global__ void __closesthit__receiver()
     // Check if the ray hits the receiver surface (dot product negative means ray is hitting the front face)
     if (dot_product < 0.0f) {
         if (new_depth < params.max_depth) {
-            params.hit_point_buffer[params.max_depth * prd.ray_path_index + new_depth] = make_float4(new_depth, hit_point);
+            const int slot = params.max_depth * prd.ray_path_index + new_depth;
+            params.hit_point_buffer[slot] = make_float4(new_depth, hit_point);
+            const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
+            params.element_id_buffer[slot] = elementId;
+
             prd.depth = new_depth;
         }
     }
@@ -192,8 +205,11 @@ extern "C" __global__ void __closesthit__receiver__cylinder__y()
     // Check if the ray hits the receiver surface (dot product negative means ray is hitting the front face)
     //if (dot_product < 0.0f) {
         if (new_depth < params.max_depth) {
-            params.hit_point_buffer[params.max_depth * prd.ray_path_index + new_depth] = make_float4(new_depth, hit_point);
+            const int slot = params.max_depth * prd.ray_path_index + new_depth;
+            params.hit_point_buffer[slot] = make_float4(new_depth, hit_point);
             prd.depth = new_depth;
+            const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
+            params.element_id_buffer[slot] = elementId;
         }
     //}
 
@@ -244,7 +260,10 @@ extern "C" __global__ void __closesthit__mirror__parabolic()
     // If the new depth is below the maximum, trace the reflected ray.
     if (new_depth < params.max_depth) {
         // Save the hit point (for visualization or further processing).
-        params.hit_point_buffer[params.max_depth * prd.ray_path_index + new_depth] = make_float4(new_depth, hit_point);
+        const int slot = params.max_depth * prd.ray_path_index + new_depth;
+        params.hit_point_buffer[slot] = make_float4(new_depth, hit_point);
+        const int32_t elementId = params.geometry_data_array[optixGetPrimitiveIndex()].id;
+        params.element_id_buffer[slot] = elementId;
 
         prd.depth = new_depth;
         optixTrace(
