@@ -10,6 +10,7 @@
 #include "Aperture.h"
 #include "utils/math_util.h"
 #include "shaders/GeometryDataST.h"
+#include "shaders/MaterialDataST.h"
 
 namespace OptixCSP {
 
@@ -33,6 +34,7 @@ namespace OptixCSP {
 
 
 	    virtual GeometryDataST toDeviceGeometryData() const = 0;
+        virtual MaterialData toDeviceMaterialData() const = 0;
 
         void set_receiver(bool val) { m_receiver = val; }
 		bool is_receiver() const { return m_receiver; }
@@ -100,6 +102,7 @@ namespace OptixCSP {
 
         // convert to device data available to GPU
         GeometryDataST toDeviceGeometryData() const override; 
+        MaterialData toDeviceMaterialData() const override;
 
         // we also need to implement the bounding box computation
         // for a case like a rectangle aperture,

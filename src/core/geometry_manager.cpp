@@ -100,7 +100,7 @@ void GeometryManager::collect_geometry_info(const std::vector<std::shared_ptr<Cs
 
 
 		// now we set the material data for each element, use placeholder values for now 
-        m_material_data_array_H[i] = {element->get_reflectivity(), element->get_transmissivity(), element->get_slope_error(), element->get_specularity_error(), element->use_refraction()};
+        m_material_data_array_H[i] = element->toDeviceMaterialData();
 
     }
 

@@ -8,6 +8,7 @@
 #include "Aperture.h"
 #include "utils/math_util.h"
 #include "shaders/GeometryDataST.h"
+#include "shaders/MaterialDataST.h"
 #include "CspElement.h"
 #include "soltrace_constants.h"
 
@@ -198,6 +199,16 @@ GeometryDataST CspElement::toDeviceGeometryData() const {
     return geometry_data;
 }
 
+MaterialData CspElement::toDeviceMaterialData() const
+{
+    MaterialData md;
+    md.reflectivity = m_reflectivity;
+    md.transmissivity = m_transmissivity;
+    md.slope_error = m_slope_error;
+    md.specularity_error = m_specularity_error;
+    md.use_refraction = m_use_refraction;
+    return md;
+}
 
 // we also need to implement the bounding box computation
 // for a case like a rectangle aperture,
