@@ -27,12 +27,10 @@ CspElement::CspElement()
     m_surface = nullptr;
     m_aperture = nullptr;
     m_receiver = false;
-    m_reflectivity = 1.0f;
-    m_transmissivity = 1.0f;
-    m_slope_error = 0.0f;
-	m_specularity_error = 0.0f;
-    m_use_refraction = false;
     m_id = kElementIdUnassigned;
+
+    set_optics_front(false, 1.f, 0.f, 0.f, 0.f);
+    set_optics_back(false, 1.f, 0.f, 0.f, 0.f);
 }
 
 // set and get origin 
@@ -85,6 +83,17 @@ void CspElement::set_aperture(const std::shared_ptr<Aperture>& aperture)
 void CspElement::set_surface(const std::shared_ptr<Surface>& surface)
 {
     m_surface = surface;
+}
+
+void CspElement::set_optics_front(const bool use_refraction, const float reflectivity,
+    const float transmissivity, const float slope_error, const float specularity_error)
+{
+    this->set_optics(true, use_refraction, reflectivity, transmissivity, slope_error, specularity_error);
+}
+void CspElement::set_optics_back(const bool use_refraction, const float reflectivity,
+    const float transmissivity, const float slope_error, const float specularity_error)
+{
+    this->set_optics(false, use_refraction, reflectivity, transmissivity, slope_error, specularity_error);
 }
 
 // set orientation based on aimpoint and zrot
@@ -199,15 +208,14 @@ GeometryDataST CspElement::toDeviceGeometryData() const {
     return geometry_data;
 }
 
-MaterialData CspElement::toDeviceMaterialData() const
+MaterialData CspElement::toDeviceMaterialDataFront() const
 {
-    MaterialData md;
-    md.reflectivity = m_reflectivity;
-    md.transmissivity = m_transmissivity;
-    md.slope_error = m_slope_error;
-    md.specularity_error = m_specularity_error;
-    md.use_refraction = m_use_refraction;
-    return md;
+    return this->m_optics_front;
+}
+
+MaterialData CspElement::toDeviceMaterialDataBack() const
+{
+    return this->m_optics_back;
 }
 
 // we also need to implement the bounding box computation
@@ -370,4 +378,16 @@ bool CspElement::in_plane(const Vec3d& point) const {
 void CspElement::set_id(const int32_t id)
 {
     this->m_id = id;
+}
+
+
+void CspElement::set_optics(const bool is_front, const bool use_refraction, const float reflectivity,
+    const float transmissivity, const float slope_error, const float specularity_error)
+{
+    auto& md = is_front ? this->m_optics_front : this->m_optics_back;
+    md.use_refraction = use_refraction;
+    md.reflectivity = reflectivity;
+    md.transmissivity = transmissivity;
+    md.slope_error = slope_error;
+    md.specularity_error = specularity_error;
 }

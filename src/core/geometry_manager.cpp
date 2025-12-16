@@ -17,7 +17,8 @@ void GeometryManager::collect_geometry_info(const std::vector<std::shared_ptr<Cs
     m_aabb_list_H.clear(); // Clear the existing AABB list
     m_sbt_index_H.clear(); // Clear the existing SBT index list
 	m_geometry_data_array_H.clear(); // Clear the existing geometry data array
-    m_material_data_array_H.clear();
+    m_material_data_array_front_H.clear();
+    m_material_data_array_back_H.clear();
 
 	m_obj_counts = static_cast<uint32_t>(element_list.size()); // Number of objects in the scene
 
@@ -25,7 +26,8 @@ void GeometryManager::collect_geometry_info(const std::vector<std::shared_ptr<Cs
 	m_aabb_list_H.resize(m_obj_counts);
 	m_geometry_data_array_H.resize(m_obj_counts);
     m_sbt_index_H.resize(m_obj_counts);
-	m_material_data_array_H.resize(m_obj_counts);
+	m_material_data_array_front_H.resize(m_obj_counts);
+    m_material_data_array_back_H.resize(m_obj_counts);
 
     for (uint32_t i = 0; i < m_obj_counts; i++) {
 
@@ -100,8 +102,8 @@ void GeometryManager::collect_geometry_info(const std::vector<std::shared_ptr<Cs
 
 
 		// now we set the material data for each element, use placeholder values for now 
-        m_material_data_array_H[i] = element->toDeviceMaterialData();
-
+        m_material_data_array_front_H[i] = element->toDeviceMaterialDataFront();
+        m_material_data_array_back_H[i] = element->toDeviceMaterialDataBack();
     }
 
     // print out computed minimum distance 

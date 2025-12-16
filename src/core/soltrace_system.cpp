@@ -163,7 +163,8 @@ void SolTraceSystem::initialize() {
     // Link the GAS handle.
     data_manager->launch_params_H.handle = m_state.gas_handle;
     data_manager->allocateGeometryDataArray(geometry_manager->get_geometry_data_array());
-    data_manager->allocateMaterialDataArray(geometry_manager->get_material_data_array());
+    data_manager->allocateMaterialDataArray(geometry_manager->get_material_data_array_front(),
+        geometry_manager->get_material_data_array_back());
     print_launch_params();
 
 

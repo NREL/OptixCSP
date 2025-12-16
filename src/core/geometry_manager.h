@@ -40,8 +40,8 @@ namespace OptixCSP {
 		std::vector<GeometryDataST>& get_geometry_data_array() { return m_geometry_data_array_H; }
 
 		/// return the list of material data array 
-		std::vector<MaterialData>& get_material_data_array() { return m_material_data_array_H; }
-
+		std::vector<MaterialData>& get_material_data_array_front() { return m_material_data_array_front_H; }
+		std::vector<MaterialData>& get_material_data_array_back() { return m_material_data_array_back_H; }
 
 		// compute sun plane 
 		void compute_sun_plane_H(LaunchParams& params);
@@ -56,7 +56,8 @@ namespace OptixCSP {
 		std::vector<OptixAabb>      m_aabb_list_H;           // aabb list
 		std::vector<GeometryDataST> m_geometry_data_array_H; // geometry data
 		std::vector<uint32_t>       m_sbt_index_H;           // sbt offset index
-		std::vector<MaterialData>   m_material_data_array_H; // material data
+		std::vector<MaterialData>   m_material_data_array_front_H; // material data
+		std::vector<MaterialData>	m_material_data_array_back_H; // material data
 
 		// members related to building GAS
 		OptixBuildInput        m_aabb_input = {};                   // needed after the first build

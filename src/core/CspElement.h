@@ -34,7 +34,8 @@ namespace OptixCSP {
 
 
 	    virtual GeometryDataST toDeviceGeometryData() const = 0;
-        virtual MaterialData toDeviceMaterialData() const = 0;
+        virtual MaterialData toDeviceMaterialDataFront() const = 0;
+        virtual MaterialData toDeviceMaterialDataBack() const = 0;
 
         void set_receiver(bool val) { m_receiver = val; }
 		bool is_receiver() const { return m_receiver; }
@@ -70,18 +71,10 @@ namespace OptixCSP {
         // Optical CspElements setters.
         void set_aperture(const std::shared_ptr<Aperture>& aperture);
         void set_surface(const std::shared_ptr<Surface>& surface);
-
-		void set_reflectivity(float val) { m_reflectivity = val; }
-		float get_reflectivity() const { return m_reflectivity; }
-        void set_transmissivity(float val) { m_transmissivity = val;}
-		float get_transmissivity() const { return m_transmissivity; }
-		void set_slope_error(float val) { m_slope_error = val; }
-		float get_slope_error() const { return m_slope_error; }
-		void set_specularity_error(float val) { m_specularity_error = val; }
-		float get_specularity_error() const { return m_specularity_error; }
-		void use_refraction(bool val) { m_use_refraction = val; }
-		bool use_refraction() const { return m_use_refraction; }
-
+        void set_optics_front(const bool use_refraction, const float reflectivity,
+            const float transmissivity, const float slope_error, const float specularity_error);
+        void set_optics_back(const bool use_refraction, const float reflectivity,
+            const float transmissivity, const float slope_error, const float specularity_error);
 
         // set orientation based on aimpoint and zrot
         void update_euler_angles(const Vec3d& aim_point, const double zrot);
@@ -102,7 +95,8 @@ namespace OptixCSP {
 
         // convert to device data available to GPU
         GeometryDataST toDeviceGeometryData() const override; 
-        MaterialData toDeviceMaterialData() const override;
+        MaterialData toDeviceMaterialDataFront() const override;
+        MaterialData toDeviceMaterialDataBack() const override;
 
         // we also need to implement the bounding box computation
         // for a case like a rectangle aperture,
@@ -118,6 +112,10 @@ namespace OptixCSP {
         void set_id(const int32_t id) override;
 
     private:
+
+        void set_optics(const bool is_front, const bool use_refraction, const float reflectivity,
+            const float transmissivity, const float slope_error, const float specularity_error);
+
         Vec3d m_origin;
         Vec3d m_aim_point;
         Vec3d m_euler_angles;  // euler angles, need to be computed from aim point and zrot
@@ -129,12 +127,8 @@ namespace OptixCSP {
         std::shared_ptr<Surface> m_surface;
         std::shared_ptr<Aperture> m_aperture;
 
-        // optical properties 
-        float m_reflectivity;
-        float m_transmissivity;
-		float m_slope_error;
-		float m_specularity_error;
-		bool m_use_refraction; // for now, if true, ray goes through the object, otherwise it reflects
+        MaterialData m_optics_front;
+        MaterialData m_optics_back;
 
         // Element id (from soltrace)
         int32_t m_id;

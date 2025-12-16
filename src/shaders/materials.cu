@@ -44,22 +44,23 @@ extern "C" {
 
 extern "C" __global__ void __closesthit__mirror()
 {
-	OptixCSP::MaterialData material = params.material_data_array[optixGetPrimitiveIndex()];
-
-    float transmissivity = material.transmissivity;
-    bool use_transmmisivity = material.use_refraction;
     // Fetch the normal vector from the hit attributes passed by OptiX
     float3 object_normal = make_float3( __uint_as_float( optixGetAttribute_0() ), __uint_as_float( optixGetAttribute_1() ),
                                         __uint_as_float( optixGetAttribute_2() ) );
     // Transform the object-space normal to world space using OptiX built-in function
     float3 world_normal  = normalize( optixTransformNormalFromObjectToWorldSpace( object_normal ) );
+
     // Compute the facing normal, which handles the direction of the normal based on the incoming ray direction
-    float3 ffnormal      = faceforward( world_normal, -optixGetWorldRayDirection(), world_normal );
+    const float3 ray_dir = optixGetWorldRayDirection();
+    float3 ffnormal      = faceforward( world_normal, -ray_dir, world_normal );
 
     // Get the incoming ray's origin, direction, and max t (intersection distance)
     const float3 ray_orig = optixGetWorldRayOrigin();
-    const float3 ray_dir  = optixGetWorldRayDirection();
     const float  ray_t    = optixGetRayTmax();
+
+    // Determine hit direction (front or back)
+    const float dot_nd = dot(ray_dir, world_normal);
+    const bool hit_front_face = (dot_nd < 0.0f);
 
     // Compute the hit point of the ray using its origin and direction, scaled by the intersection distance (ray_t)
     const float3 hit_point = ray_orig + ray_t * ray_dir;
@@ -74,11 +75,18 @@ extern "C" __global__ void __closesthit__mirror()
 	bool absorbed = false;  // determine whether the ray is absorbed or not, this is montecarlo based, should be applied to reflection and refraction
     uint8_t hit_type = OptixCSP::HitType::HIT_UNASSIGNED;
 
-    if (use_transmmisivity) {
+    // Get optical properties
+    OptixCSP::MaterialData material = hit_front_face ? params.material_data_array_front[optixGetPrimitiveIndex()]
+        : params.material_data_array_back[optixGetPrimitiveIndex()];
+    float transmissivity = material.transmissivity;
+    bool use_transmissivity = material.use_refraction;
+    float reflectivity = material.reflectivity;
+
+    if (use_transmissivity) {
 		new_dir = refract(ray_dir, ffnormal);
 
 		// now we figure out the random number to determine if the ray is absorbed or refracted
-        uint32_t seed = seed = params.sun_dir_seed ^ (prd.ray_path_index * 0x9E3779B9u)   // golden ratio mix
+        uint32_t seed = params.sun_dir_seed ^ (prd.ray_path_index * 0x9E3779B9u)   // golden ratio mix
             ^ (prd.depth * 0x85EBCA6Bu);
 		float xi = OptixCSP::rng_uniform(seed); // random number in [0,1)
         if (xi > transmissivity) { 
@@ -92,8 +100,20 @@ extern "C" __global__ void __closesthit__mirror()
         }
     }
     else {
-		new_dir = reflect(ray_dir, ffnormal);
-        hit_type = OptixCSP::HitType::HIT_REFLECT;
+        // now we figure out the random number to determine if the ray is absorbed or reflected
+        uint32_t seed = seed = params.sun_dir_seed ^ (prd.ray_path_index * 0x9E3779B9u)   // golden ratio mix
+            ^ (prd.depth * 0x85EBCA6Bu);
+        float xi = OptixCSP::rng_uniform(seed); // random number in [0,1)
+        if (xi > reflectivity) {
+            absorbed = true;
+            hit_type = OptixCSP::HitType::HIT_ABSORB;
+            //printf("ray is absorbed! ray index is %d, depth %d\n", prd.ray_path_index, prd.depth); 
+        }   // ray is absorbed
+        else
+        {
+            new_dir = reflect(ray_dir, ffnormal);
+            hit_type = OptixCSP::HitType::HIT_REFLECT;
+        }
     }
 
     // Check if the maximum recursion depth has not been reached
