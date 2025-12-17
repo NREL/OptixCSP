@@ -249,14 +249,17 @@ void CspElement::compute_bounding_box() {
         Vec3d corner3_global = rotation_matrix * corner3 + m_origin;
         Vec3d corner4_global = rotation_matrix * corner4 + m_origin;
 
+        // Extended z axis box slightly
+        double epsilon = 1e-1;
+
         // now update the bounding box, need to find the min and max x, y, z
         m_lower_box_bound[0] = fmin(fmin(corner1_global[0], corner2_global[0]), fmin(corner3_global[0], corner4_global[0]));
         m_lower_box_bound[1] = fmin(fmin(corner1_global[1], corner2_global[1]), fmin(corner3_global[1], corner4_global[1]));
-        m_lower_box_bound[2] = fmin(fmin(corner1_global[2], corner2_global[2]), fmin(corner3_global[2], corner4_global[2]));
+        m_lower_box_bound[2] = fmin(fmin(corner1_global[2], corner2_global[2]), fmin(corner3_global[2], corner4_global[2])) - epsilon;
 
         m_upper_box_bound[0] = fmax(fmax(corner1_global[0], corner2_global[0]), fmax(corner3_global[0], corner4_global[0]));
         m_upper_box_bound[1] = fmax(fmax(corner1_global[1], corner2_global[1]), fmax(corner3_global[1], corner4_global[1]));
-        m_upper_box_bound[2] = fmax(fmax(corner1_global[2], corner2_global[2]), fmax(corner3_global[2], corner4_global[2]));
+        m_upper_box_bound[2] = fmax(fmax(corner1_global[2], corner2_global[2]), fmax(corner3_global[2], corner4_global[2])) + epsilon;
     }
 
     // slightly different for the cylinder, we want to know the radius and half height
