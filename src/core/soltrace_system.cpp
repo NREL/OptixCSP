@@ -286,6 +286,7 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
     std::cout << "Data successfully written to " << filename << std::endl;
 }
 
+// Now ONLY keeps rays that have more interactions than CREATE
 void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec, 
     std::vector<int>& raynumber_vec,
     std::vector<int>& element_id_vec,
@@ -304,6 +305,7 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec,
     CUDA_CHECK(cudaMemcpy(hit_type_buffer.data(), data_manager->launch_params_H.hit_type_buffer, output_size * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
     // Loop through each buffer slot
+    int ray_number = last_ray_number;
     for (int i = 0; i < output_size; ++i) {
 
         // Get hit type
@@ -315,19 +317,40 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec,
             continue;
         }
 
-        // Get hit record and element_id
-        const float4& hit_record = hp_output_buffer[i]; // [depth, pos x, pos y, pos y]
-        const int32_t& element_id = element_id_buffer[i];
+        // If new ray, check if previous ray hit anything
+        if (hit_type == HitType::HIT_CREATE)
+        {
+            // Remove last ray if it has no hits
+            if (!hit_type_vec.empty() && hit_type_vec.back() == HitType::HIT_CREATE)
+            {
+                hp_vec.pop_back();
+                raynumber_vec.pop_back();
+                hit_type_vec.pop_back();
+                element_id_vec.pop_back();
+                ray_number--;
+            }
 
-        // Calculate ray number from buffer and depth
-        // Slower than alternatives but clear
-        const int ray_number = (i / max_depth) + 1 + last_ray_number;
+            // New ray
+            ray_number++;
+        }
+
+        // Get hit record and element_id
+        const float4& hit_record = hp_output_buffer[i]; // [depth, pos x, pos y, pos z]
+        const int32_t& element_id = element_id_buffer[i];
 
         // Collect results
         hp_vec.push_back(hit_record);
         raynumber_vec.push_back(ray_number);
         hit_type_vec.push_back(hit_type);
         element_id_vec.push_back(element_id);
+    }
+
+    // Remove last ray if it is only CREATE
+    if (!hit_type_vec.empty() && hit_type_vec.back() == HitType::HIT_CREATE) {
+        hp_vec.pop_back();
+        raynumber_vec.pop_back();
+        element_id_vec.pop_back();
+        hit_type_vec.pop_back();
     }
 
     return;
