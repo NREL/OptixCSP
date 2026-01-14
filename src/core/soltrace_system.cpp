@@ -289,9 +289,13 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
 void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec, 
     std::vector<int>& raynumber_vec,
     std::vector<int>& element_id_vec,
-    std::vector<uint8_t>& hit_type_vec)
+    std::vector<uint8_t>& hit_type_vec,
+    int last_ray_number)
 {
-    int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
+    const int max_depth = data_manager->launch_params_H.max_depth;
+    const int num_rays = data_manager->launch_params_H.width * data_manager->launch_params_H.height;
+    const int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
+    
     std::vector<float4> hp_output_buffer(output_size);
     std::vector<int32_t> element_id_buffer(output_size);
     std::vector<uint8_t> hit_type_buffer(output_size);
@@ -299,48 +303,31 @@ void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec,
     CUDA_CHECK(cudaMemcpy(element_id_buffer.data(), data_manager->launch_params_H.element_id_buffer, output_size * sizeof(int32_t), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(hit_type_buffer.data(), data_manager->launch_params_H.hit_type_buffer, output_size * sizeof(uint8_t), cudaMemcpyDeviceToHost));
 
-    int currentRay = 1;
-    int stage = 0;
+    // Loop through each buffer slot
+    for (int i = 0; i < output_size; ++i) {
 
-    int i = 0;
-    for (const auto& element : hp_output_buffer) {
+        // Get hit type
+        const uint8_t& hit_type = hit_type_buffer[i];
 
-        // Inline check: if y, z, and w are all zero, treat as marker for new ray.
-        if ((element.y == 0) && (element.z == 0) && (element.w == 0)) {
-            if (stage > 0) {
-                currentRay++;
-                stage = 0;
-            }
-            i++;
-            continue;  // Skip printing this marker element.
+        // Skip if empty
+        if (hit_type < HitType::HIT_CREATE || hit_type > HitType::HIT_EXIT)
+        {
+            continue;
         }
 
-        // If we haven't reached max_trace stages for the current ray, print the element.
-        if (stage < data_manager->launch_params_H.max_depth) {
-            //outFile << currentRay << ","
-            //    << element.x << "," << element.y << ","
-            //    << element.z << "," << element.w << "\n";
-            hp_vec.push_back(element);
-            raynumber_vec.push_back(currentRay);
-            element_id_vec.push_back(element_id_buffer[i]);
-            hit_type_vec.push_back(hit_type_buffer[i]);
-            stage++;
-        }
-        else {
-            // If max_trace stages reached, move to next ray and reset stage counter.
-            currentRay++;
-            stage = 0;
-            //outFile << currentRay << ","
-            //    << element.x << "," << element.y << ","
-            //    << element.z << "," << element.w << "\n";
-            hp_vec.push_back(element);
-            raynumber_vec.push_back(currentRay);
-            element_id_vec.push_back(element_id_buffer[i]);
-            hit_type_vec.push_back(hit_type_buffer[i]);
-            stage++;
-        }
+        // Get hit record and element_id
+        const float4& hit_record = hp_output_buffer[i]; // [depth, pos x, pos y, pos y]
+        const int32_t& element_id = element_id_buffer[i];
 
-        i++;
+        // Calculate ray number from buffer and depth
+        // Slower than alternatives but clear
+        const int ray_number = (i / max_depth) + 1 + last_ray_number;
+
+        // Collect results
+        hp_vec.push_back(hit_record);
+        raynumber_vec.push_back(ray_number);
+        hit_type_vec.push_back(hit_type);
+        element_id_vec.push_back(element_id);
     }
 
     return;
