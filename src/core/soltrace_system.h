@@ -118,6 +118,7 @@ namespace OptixCSP {
 
         std::vector<std::shared_ptr<CspElement>> m_element_list;
         void create_shader_binding_table();
+        void setup_device_buffer();
 
         // Helper functions to read a stinput file
         bool read_system(FILE* fp);

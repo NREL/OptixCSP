@@ -117,45 +117,8 @@ void SolTraceSystem::initialize() {
     sbt_timer.stop();
 	std::cout << "Time to create SBT: " << sbt_timer.get_time_sec() << " seconds" << std::endl;
 
-    // Initialize launch params
-    data_manager->launch_params_H.width = m_num_sunpoints;
-    data_manager->launch_params_H.height = 1;
-    data_manager->launch_params_H.max_depth = MAX_TRACE_DEPTH;
-
-
 	// seed for sun ray randomization
     data_manager->launch_params_H.sun_dir_seed = 123456ULL;
-
-    // Allocate memory for the hit point buffer, size is number of rays launched * depth
-    const size_t hit_point_buffer_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(float4) * data_manager->launch_params_H.max_depth;
-
-    CUDA_CHECK(cudaMalloc(
-        reinterpret_cast<void**>(&data_manager->launch_params_H.hit_point_buffer),
-        hit_point_buffer_size
-    ));
-    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_point_buffer, 0, hit_point_buffer_size));
-
-    // Allocate memory for element id buffer, size is number of rays launched * depth
-    const size_t element_id_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(int32_t) * data_manager->launch_params_H.max_depth;
-    CUDA_CHECK(cudaMalloc(
-        reinterpret_cast<void**>(&data_manager->launch_params_H.element_id_buffer),
-        element_id_size
-    ));
-    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.element_id_buffer, kElementIdBuffer, element_id_size));
-
-    // Allocate memory for hit type buffer, size is number of rays launched * depth
-    const size_t hit_type_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(uint8_t) * data_manager->launch_params_H.max_depth;
-    CUDA_CHECK(cudaMalloc(
-        reinterpret_cast<void**>(&data_manager->launch_params_H.hit_type_buffer),
-        hit_type_size
-    ));
-    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_type_buffer, kElementIdBuffer, hit_type_size));
-
-	// Luning TODO: Allocate memory for the direction cosine buffer, size is number of rays launched * depth
-    const size_t sun_dir_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(float3);
-
-    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&data_manager->launch_params_H.sun_dir_buffer), sun_dir_size));
-    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.sun_dir_buffer, 0, sun_dir_size));
 
     // Create a CUDA stream for asynchronous operations.
     CUDA_CHECK(cudaStreamCreate(&m_state.stream));
@@ -167,16 +130,15 @@ void SolTraceSystem::initialize() {
         geometry_manager->get_material_data_array_back());
     print_launch_params();
 
-
-    // copy launch params to device
     data_manager->allocateLaunchParams();
-    data_manager->updateLaunchParams();
-
     m_timer_setup.stop();
 
 }
 
 void SolTraceSystem::run() {
+
+    // Allocate buffer (sets data_manager->launch_params_H buffer)
+    setup_device_buffer();
 
     int width = data_manager->launch_params_H.width;
     int height = data_manager->launch_params_H.height;
@@ -680,6 +642,47 @@ void SolTraceSystem::create_shader_binding_table(){
         m_state.sbt.hitgroupRecordCount = count_records;                  // Total number of hitgroup records.
         m_state.sbt.hitgroupRecordStrideInBytes = static_cast<uint32_t>(sizeof_hitgroup_record);  // Stride size.
     }
+}
+
+void SolTraceSystem::setup_device_buffer()
+{
+    // Initialize launch params
+    data_manager->launch_params_H.width = m_num_sunpoints;
+    data_manager->launch_params_H.height = 1;
+    data_manager->launch_params_H.max_depth = MAX_TRACE_DEPTH;
+
+    // Allocate memory for the hit point buffer, size is number of rays launched * depth
+    const size_t hit_point_buffer_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(float4) * data_manager->launch_params_H.max_depth;
+
+    CUDA_CHECK(cudaMalloc(
+        reinterpret_cast<void**>(&data_manager->launch_params_H.hit_point_buffer),
+        hit_point_buffer_size
+    ));
+    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_point_buffer, 0, hit_point_buffer_size));
+
+    // Allocate memory for element id buffer, size is number of rays launched * depth
+    const size_t element_id_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(int32_t) * data_manager->launch_params_H.max_depth;
+    CUDA_CHECK(cudaMalloc(
+        reinterpret_cast<void**>(&data_manager->launch_params_H.element_id_buffer),
+        element_id_size
+    ));
+    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.element_id_buffer, kElementIdBuffer, element_id_size));
+
+    // Allocate memory for hit type buffer, size is number of rays launched * depth
+    const size_t hit_type_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(uint8_t) * data_manager->launch_params_H.max_depth;
+    CUDA_CHECK(cudaMalloc(
+        reinterpret_cast<void**>(&data_manager->launch_params_H.hit_type_buffer),
+        hit_type_size
+    ));
+    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.hit_type_buffer, kElementIdBuffer, hit_type_size));
+
+    // Luning TODO: Allocate memory for the direction cosine buffer, size is number of rays launched * depth
+    const size_t sun_dir_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * sizeof(float3);
+
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&data_manager->launch_params_H.sun_dir_buffer), sun_dir_size));
+    CUDA_CHECK(cudaMemset(data_manager->launch_params_H.sun_dir_buffer, 0, sun_dir_size));
+
+    data_manager->updateLaunchParams();
 }
 
 void SolTraceSystem::add_element(std::shared_ptr<CspElement> e)
