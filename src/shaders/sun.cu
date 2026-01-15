@@ -96,8 +96,9 @@ extern "C" __global__ void __raygen__sun_source()
     const uint3 launch_idx = optixGetLaunchIndex();         // Index of the current launch thread
     const uint3 launch_dims = optixGetLaunchDimensions();   // Dimensions of the launch grid
     const unsigned int ray_number = launch_idx.y * launch_dims.x + launch_idx.x;  // Unique ray ID
+    const unsigned int ray_number_global = ray_number + params.ray_offset;  // Global unique ray ID
 
-    float3 sun_sample_pos = OptixCSP::haltonSampleInParallelogram(ray_number);
+    float3 sun_sample_pos = OptixCSP::haltonSampleInParallelogram(ray_number_global);
 
     // Sample emission angle here - capturing sun distribution
     const float3 ray_gen_pos = sun_sample_pos;
