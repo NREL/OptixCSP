@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
         num_rays = std::stoi(argv[1]);
 
     std::cout << "Starting ST_System simulation with " << num_rays << " sun points..." << std::endl;
-	SolTraceSystem system(num_rays);
+	SolTraceSystem system(num_rays, num_rays * 100);
 
 
     Vec3d sun_vector(0, 0, 1.); // sun vector

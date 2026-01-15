@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Create the simulation system.
-    SolTraceSystem system(num_rays);
+    SolTraceSystem system(num_rays, num_rays * 100);
 
     Vec3d origin_e1(-5, 0, 0); // origin of the element
     Vec3d aim_point_e1(17.360680, 0, 94.721360); // aim point of the element

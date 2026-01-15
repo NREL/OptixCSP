@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
 	bool write_hitpoints = std::stoi(argv[5]); // write hitpoints to file
 
     // Create the simulation system.
-    SolTraceSystem system(num_rays);
+    SolTraceSystem system(num_rays, num_rays * 100);
 
 	const char* stinput_file = stinput_name.c_str(); // Default stinput file name
 

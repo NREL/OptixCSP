@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
 
 
     // Create the simulation system.
-    SolTraceSystem system(num_rays);
+    SolTraceSystem system(num_rays, num_rays * 100);
 
         //////////////////////////////////////////////////////////////////
         // STEP 0: initialize the ray trace system with number of rays //

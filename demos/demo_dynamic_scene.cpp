@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
 	// number of rays launched for the simulation
 	int num_rays = 1000;
 	// Create the simulation system.
-	SolTraceSystem system(num_rays);
+	SolTraceSystem system(num_rays, num_rays * 100);
 
 	double curv_x = 0.0170679f;
 	double curv_y = 0.0370679f;

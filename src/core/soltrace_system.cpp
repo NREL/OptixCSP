@@ -52,9 +52,9 @@ void SolTraceSystem::print_launch_params() {
     std::cout << "sun_box_edge_b     : " << sun_box_edge_b << std::endl;
 }
 
-SolTraceSystem::SolTraceSystem(int numSunPoints)
+SolTraceSystem::SolTraceSystem(int numSunPoints, int maxSunPoints)
     : m_number_of_rays(numSunPoints),
-      m_num_hits_receiver(0),
+      m_max_number_of_rays(maxSunPoints),
       m_verbose(false),
       m_mem_free_before(0),
       m_mem_free_after(0),

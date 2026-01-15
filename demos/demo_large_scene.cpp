@@ -24,7 +24,7 @@ int main(int argc, char* argv[]) {
 	num_rays = std::stoi(argv[3]);
 
     // Create the simulation system.
-    SolTraceSystem system(num_rays);
+    SolTraceSystem system(num_rays, num_rays * 100);
 
 	const char* stinput_file; // Default stinput file name
     if (parabolic) {

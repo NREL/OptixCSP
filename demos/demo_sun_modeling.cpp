@@ -11,7 +11,7 @@ using namespace OptixCSP;
 int main(int argc, char* argv[]) {
     int num_rays = 1000000;
     // Create the simulation system.
-    SolTraceSystem system(num_rays);
+    SolTraceSystem system(num_rays, num_rays * 100);
 
     // Element 1
     Vec3d origin_e1(0, 0, 0); // origin of the element

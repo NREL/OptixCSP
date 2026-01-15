@@ -25,7 +25,7 @@ namespace OptixCSP {
 
     class SolTraceSystem {
     public:
-        SolTraceSystem(int numSunPoints);
+        SolTraceSystem(int numSunPoints, int maxSunPoints);
         ~SolTraceSystem();
 
         /// Call to this function mark the completion of the simulation setup
