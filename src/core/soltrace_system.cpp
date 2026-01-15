@@ -142,11 +142,9 @@ void SolTraceSystem::run() {
     m_raynumber_vec.clear();
     m_element_id_vec.clear();
     m_hit_type_vec.clear();
+    m_sun_ray_dir_vec.clear();
     int N_ray_hit = 0;
     int N_ray_gen = 0;
-
-    // Seed for batch
-    uint64_t batch_seed = data_manager->launch_params_H.sun_dir_seed;
 
     while (N_ray_hit < m_number_of_rays && N_ray_gen < m_max_number_of_rays)
     {
@@ -177,7 +175,7 @@ void SolTraceSystem::run() {
         CUDA_SYNC_CHECK();
 
         // Collect results
-        get_buffer_results(m_hp_vec, m_raynumber_vec, m_element_id_vec, m_hit_type_vec);
+        get_buffer_results(m_hp_vec, m_raynumber_vec, m_element_id_vec, m_hit_type_vec, m_sun_ray_dir_vec);
         N_ray_hit = m_raynumber_vec.empty() ? 0 : m_raynumber_vec.back();
         N_ray_gen += width;
     }
@@ -236,38 +234,31 @@ bool SolTraceSystem::read_st_input(const char* filename) {
 
 int SolTraceSystem::get_num_hits_receiver(CspElement receiver) {
 
-    int output_size = m_number_of_rays * data_manager->launch_params_H.max_depth;
-    std::vector<float4> hp_output_buffer(output_size);
-    CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
-
-
-	m_num_hits_receiver = 0;
+    int output_size = m_hp_vec.size();
+	int num_hits_receiver = 0;
 
 	// go through all the hit points, if the point value is inside the receiver element, count it as a hit.
     for (int i = 0; i < output_size; i++) {
-        float4 hp = hp_output_buffer[i];
+        float4 hp = m_hp_vec[i];
 
         // sun ray source, skip it
         if (hp.x == 0) continue;
 
-
         Vec3d hit_point(hp.y, hp.z, hp.w);
         if (receiver.in_plane(hit_point)) {
-            m_num_hits_receiver++;
-            //std::cout << "ray depth " << hp.x << std::endl;
+            num_hits_receiver++;
         }
 
-		//if (hp.x == 3) 
-  //          std::cout << receiver.in_plane(hit_point) << std::endl; // debug purpose only
-
     }
-    return m_num_hits_receiver;
+    return num_hits_receiver;
 }
 
 void SolTraceSystem::write_hp_output(const std::string& filename) {
-    int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
-    std::vector<float4> hp_output_buffer(output_size);
-    CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
+    //int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
+    //std::vector<float4> hp_output_buffer(output_size);
+    //CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
+
+    int output_size = m_hp_vec.size();
 
     std::ofstream outFile(filename);
 
@@ -280,38 +271,15 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
 	// TODO, if statements to check if one needs to write dir_cos_buffer or not
     outFile << "number,stage,loc_x,loc_y,loc_z,cosx,cosy,cosz\n";
 
-    int currentRay = 1;
-    int stage = 0;
+    for (int i = 0; i < output_size; ++i) 
+    {
+        const float4& hit_record = m_hp_vec[i];
+        const int currentRay = m_raynumber_vec[i];
 
-    for (const auto& element : hp_output_buffer) {
-
-        // Inline check: if y, z, and w are all zero, treat as marker for new ray.
-        if ((element.y == 0) && (element.z == 0) && (element.w == 0)) {
-            if (stage > 0) {
-                currentRay++;
-                stage = 0;
-            }
-            continue;  // Skip printing this marker element.
-        }
-
-        // If we haven't reached max_trace stages for the current ray, print the element.
-        if (stage < data_manager->launch_params_H.max_depth) {
-            outFile << currentRay << ","
-                << element.x << "," << element.y << ","
-                << element.z << "," << element.w << "\n";
-            stage++;
-        }
-        else {
-            // If max_trace stages reached, move to next ray and reset stage counter.
-            currentRay++;
-            stage = 0;
-            outFile << currentRay << ","
-                << element.x << "," << element.y << ","
-                << element.z << "," << element.w << "\n";
-            stage++;
-        }
-
-
+        // Write to file
+        outFile << currentRay << ","
+            << hit_record.x << "," << hit_record.y << ","
+            << hit_record.z << "," << hit_record.w << "\n";
     }
 
     outFile.close();
@@ -429,11 +397,6 @@ void SolTraceSystem::write_simulation_json(const std::string& filename) {
 
 
 void SolTraceSystem::write_sun_output(const std::string& filename) {
-    int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height;
-
-    std::vector<float3> sun_dir_buffer(output_size);
-    CUDA_CHECK(cudaMemcpy(sun_dir_buffer.data(), data_manager->launch_params_H.sun_dir_buffer, output_size * sizeof(float3), cudaMemcpyDeviceToHost));
-
 
     std::ofstream outFile(filename);
 
@@ -446,15 +409,13 @@ void SolTraceSystem::write_sun_output(const std::string& filename) {
     // TODO, if statements to check if one needs to write dir_cos_buffer or not
     outFile << "number,cosx,cosy,cosz\n";
 
-    int currentRay = 1;
-
-    for (const auto& element : sun_dir_buffer) {
-        outFile << currentRay << ","
-                << element.x << "," 
-                << element.y << ","
-                << element.z << "\n";
-
-        currentRay++;
+    int i = 1;
+    for (const auto& ray_dir : m_sun_ray_dir_vec) {
+        outFile << i << ","
+                << ray_dir.x << ","
+                << ray_dir.y << ","
+                << ray_dir.z << "\n";
+        i++;
     }
 
     outFile.close();
@@ -671,7 +632,7 @@ void SolTraceSystem::setup_device_buffer()
 // Collects results from device buffer
 // only keeps rays that hit elements
 void SolTraceSystem::get_buffer_results(std::vector<float4>& hp_vec, std::vector<int>& raynumber_vec,
-    std::vector<int>& element_id_vec, std::vector<uint8_t>& hit_type_vec)
+    std::vector<int>& element_id_vec, std::vector<uint8_t>& hit_type_vec, std::vector<float3>& sun_ray_dir_vec)
 {
     const int max_depth = data_manager->launch_params_H.max_depth;
     const int num_rays = data_manager->launch_params_H.width * data_manager->launch_params_H.height;
@@ -680,6 +641,7 @@ void SolTraceSystem::get_buffer_results(std::vector<float4>& hp_vec, std::vector
     std::vector<float4> hp_output_buffer(output_size);
     std::vector<int32_t> element_id_buffer(output_size);
     std::vector<uint8_t> hit_type_buffer(output_size);
+    
     CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(element_id_buffer.data(), data_manager->launch_params_H.element_id_buffer, output_size * sizeof(int32_t), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(hit_type_buffer.data(), data_manager->launch_params_H.hit_type_buffer, output_size * sizeof(uint8_t), cudaMemcpyDeviceToHost));
@@ -714,7 +676,7 @@ void SolTraceSystem::get_buffer_results(std::vector<float4>& hp_vec, std::vector
             ray_number++;
         }
 
-        // Get hit record and element_id
+        // Get hit record, element_id
         const float4& hit_record = hp_output_buffer[i]; // [depth, pos x, pos y, pos z]
         const int32_t& element_id = element_id_buffer[i];
 
@@ -732,6 +694,19 @@ void SolTraceSystem::get_buffer_results(std::vector<float4>& hp_vec, std::vector
         element_id_vec.pop_back();
         hit_type_vec.pop_back();
     }
+
+    // Get sun dir output
+    // This is EVERY generated ray, regardless of whether it hits anything
+    // TODO: remove this if possible in future
+    const int sun_dir_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height;
+    std::vector<float3> sun_ray_dir_buffer(sun_dir_size);
+    CUDA_CHECK(cudaMemcpy(sun_ray_dir_buffer.data(), data_manager->launch_params_H.sun_dir_buffer, sun_dir_size * sizeof(float3), cudaMemcpyDeviceToHost));
+    sun_ray_dir_vec.reserve(sun_ray_dir_vec.size() + sun_ray_dir_buffer.size());
+    sun_ray_dir_vec.insert(
+        sun_ray_dir_vec.end(),
+        sun_ray_dir_buffer.begin(),
+        sun_ray_dir_buffer.end()
+    );
 
     return;
 }
