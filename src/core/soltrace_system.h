@@ -46,7 +46,7 @@ namespace OptixCSP {
         void write_hp_output(const std::string& filename);
         // Get all hit points
         void get_hp_output(std::vector<float4>& hp_vec, std::vector<int>& raynumber_vec, std::vector<int>& element_id_vec,
-            std::vector<uint8_t>& hit_type_vec, int last_ray_number = 0);
+            std::vector<uint8_t>& hit_type_vec);
         // write simulation summary to a file, including receiver stats, etc
 		void write_simulation_json(const std::string& filename);
 		// get number of rays hitting the receiver
@@ -63,7 +63,11 @@ namespace OptixCSP {
         /// set the number of rays launched
         /// </summary>
         /// <param name="numSunPoints"></param>
-        void set_sun_points(int num) { m_num_sunpoints = num; }
+        void set_number_of_rays(int nrays, int maxrays) 
+        { 
+            m_number_of_rays = nrays;
+            m_max_number_of_rays = maxrays;
+        }
 
         /// <summary>
         /// set normalized sun vector
@@ -108,7 +112,9 @@ namespace OptixCSP {
         std::shared_ptr<pipelineManager> pipeline_manager;
         std::shared_ptr<dataManager>     data_manager;
 
-        int m_num_sunpoints;
+        int m_number_of_rays;
+        int m_max_number_of_rays;
+
         bool m_verbose;
         int m_num_hits_receiver;
 
@@ -116,9 +122,17 @@ namespace OptixCSP {
         double m_sun_angle;
         OptixCSP::SoltraceState m_state;
 
+        // Results
+        std::vector<float4> m_hp_vec;
+        std::vector<int> m_raynumber_vec;
+        std::vector<int> m_element_id_vec;
+        std::vector<uint8_t> m_hit_type_vec;
+
         std::vector<std::shared_ptr<CspElement>> m_element_list;
         void create_shader_binding_table();
         void setup_device_buffer();
+        void get_buffer_results(std::vector<float4>& hp_vec, std::vector<int>& raynumber_vec, 
+            std::vector<int>& element_id_vec, std::vector<uint8_t>& hit_type_vec);
 
         // Helper functions to read a stinput file
         bool read_system(FILE* fp);

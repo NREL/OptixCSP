@@ -53,7 +53,7 @@ void SolTraceSystem::print_launch_params() {
 }
 
 SolTraceSystem::SolTraceSystem(int numSunPoints)
-    : m_num_sunpoints(numSunPoints),
+    : m_number_of_rays(numSunPoints),
       m_num_hits_receiver(0),
       m_verbose(false),
       m_mem_free_before(0),
@@ -137,32 +137,64 @@ void SolTraceSystem::initialize() {
 
 void SolTraceSystem::run() {
 
-    // Allocate buffer (sets data_manager->launch_params_H buffer)
-    setup_device_buffer();
+    // Initialize results vectors
+    m_hp_vec.clear();
+    m_raynumber_vec.clear();
+    m_element_id_vec.clear();
+    m_hit_type_vec.clear();
+    int N_ray_hit = 0;
+    int N_ray_gen = 0;
 
-    int width = data_manager->launch_params_H.width;
-    int height = data_manager->launch_params_H.height;
+    // Seed for batch
+    uint64_t batch_seed = data_manager->launch_params_H.sun_dir_seed;
 
-    size_t m_mem_free_after;
-    cudaMemGetInfo(&m_mem_free_after, nullptr);
-    std::cout << "Memory used by launch: " << (m_mem_free_before - m_mem_free_after) / (1024.0 * 1024.0) << " MB\n";
+    while (N_ray_hit < m_number_of_rays && N_ray_gen < m_max_number_of_rays)
+    {
+        // Update ray offset (pushed to device in setup_device_buffer)
+        data_manager->launch_params_H.ray_offset = N_ray_gen;
 
-    m_timer_trace.start();
-    // Launch the simulation.
-    OPTIX_CHECK(optixLaunch(
-        m_state.pipeline,
-        m_state.stream,  // Assume this stream is properly created.
-        reinterpret_cast<CUdeviceptr>(data_manager->getDeviceLaunchParams()),
-        sizeof(OptixCSP::LaunchParams),
-		&m_state.sbt,    // Shader Binding Table.
-        width,  // Launch dimensions
-        height,
-        1));
-    CUDA_SYNC_CHECK();
+        // Allocate buffer (sets data_manager->launch_params_H buffer)
+        setup_device_buffer();
+
+        int width = data_manager->launch_params_H.width;
+        int height = data_manager->launch_params_H.height;
+
+        size_t m_mem_free_after;
+        cudaMemGetInfo(&m_mem_free_after, nullptr);
+        std::cout << "Memory used by launch: " << (m_mem_free_before - m_mem_free_after) / (1024.0 * 1024.0) << " MB\n";
+
+        m_timer_trace.start();
+        // Launch the simulation.
+        OPTIX_CHECK(optixLaunch(
+            m_state.pipeline,
+            m_state.stream,  // Assume this stream is properly created.
+            reinterpret_cast<CUdeviceptr>(data_manager->getDeviceLaunchParams()),
+            sizeof(OptixCSP::LaunchParams),
+            &m_state.sbt,    // Shader Binding Table.
+            width,  // Launch dimensions
+            height,
+            1));
+        CUDA_SYNC_CHECK();
+
+        // Collect results
+        get_buffer_results(m_hp_vec, m_raynumber_vec, m_element_id_vec, m_hit_type_vec);
+        N_ray_hit = m_raynumber_vec.empty() ? 0 : m_raynumber_vec.back();
+        N_ray_gen += width;
+    }
+
+    // Trim excess rays
+    if (N_ray_hit > m_number_of_rays)
+    {
+        while (m_raynumber_vec.back() > m_number_of_rays)
+        {
+            m_hp_vec.pop_back();
+            m_raynumber_vec.pop_back();
+            m_element_id_vec.pop_back();
+            m_hit_type_vec.pop_back();
+        }
+    }
 
 	m_timer_trace.stop();
-
-
 }
 
 void SolTraceSystem::update() {
@@ -204,7 +236,7 @@ bool SolTraceSystem::read_st_input(const char* filename) {
 
 int SolTraceSystem::get_num_hits_receiver(CspElement receiver) {
 
-    int output_size = m_num_sunpoints * data_manager->launch_params_H.max_depth;
+    int output_size = m_number_of_rays * data_manager->launch_params_H.max_depth;
     std::vector<float4> hp_output_buffer(output_size);
     CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
 
@@ -286,74 +318,15 @@ void SolTraceSystem::write_hp_output(const std::string& filename) {
     std::cout << "Data successfully written to " << filename << std::endl;
 }
 
-// Now ONLY keeps rays that have more interactions than CREATE
 void SolTraceSystem::get_hp_output(std::vector<float4>& hp_vec, 
     std::vector<int>& raynumber_vec,
     std::vector<int>& element_id_vec,
-    std::vector<uint8_t>& hit_type_vec,
-    int last_ray_number)
+    std::vector<uint8_t>& hit_type_vec)
 {
-    const int max_depth = data_manager->launch_params_H.max_depth;
-    const int num_rays = data_manager->launch_params_H.width * data_manager->launch_params_H.height;
-    const int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
-    
-    std::vector<float4> hp_output_buffer(output_size);
-    std::vector<int32_t> element_id_buffer(output_size);
-    std::vector<uint8_t> hit_type_buffer(output_size);
-    CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(element_id_buffer.data(), data_manager->launch_params_H.element_id_buffer, output_size * sizeof(int32_t), cudaMemcpyDeviceToHost));
-    CUDA_CHECK(cudaMemcpy(hit_type_buffer.data(), data_manager->launch_params_H.hit_type_buffer, output_size * sizeof(uint8_t), cudaMemcpyDeviceToHost));
-
-    // Loop through each buffer slot
-    int ray_number = last_ray_number;
-    for (int i = 0; i < output_size; ++i) {
-
-        // Get hit type
-        const uint8_t& hit_type = hit_type_buffer[i];
-
-        // Skip if empty
-        if (hit_type < HitType::HIT_CREATE || hit_type > HitType::HIT_EXIT)
-        {
-            continue;
-        }
-
-        // If new ray, check if previous ray hit anything
-        if (hit_type == HitType::HIT_CREATE)
-        {
-            // Remove last ray if it has no hits
-            if (!hit_type_vec.empty() && hit_type_vec.back() == HitType::HIT_CREATE)
-            {
-                hp_vec.pop_back();
-                raynumber_vec.pop_back();
-                hit_type_vec.pop_back();
-                element_id_vec.pop_back();
-                ray_number--;
-            }
-
-            // New ray
-            ray_number++;
-        }
-
-        // Get hit record and element_id
-        const float4& hit_record = hp_output_buffer[i]; // [depth, pos x, pos y, pos z]
-        const int32_t& element_id = element_id_buffer[i];
-
-        // Collect results
-        hp_vec.push_back(hit_record);
-        raynumber_vec.push_back(ray_number);
-        hit_type_vec.push_back(hit_type);
-        element_id_vec.push_back(element_id);
-    }
-
-    // Remove last ray if it is only CREATE
-    if (!hit_type_vec.empty() && hit_type_vec.back() == HitType::HIT_CREATE) {
-        hp_vec.pop_back();
-        raynumber_vec.pop_back();
-        element_id_vec.pop_back();
-        hit_type_vec.pop_back();
-    }
-
-    return;
+    hp_vec = m_hp_vec;
+    raynumber_vec = m_raynumber_vec;
+    element_id_vec = m_element_id_vec;
+    hit_type_vec = m_hit_type_vec;
 }
 
 // write json output file for post processing
@@ -373,7 +346,7 @@ void SolTraceSystem::write_simulation_json(const std::string& filename) {
 
     out << "{\n";
     out << "  \"sun\": {\n";
-    out << "    \"number_of_sunpoints\": " << m_num_sunpoints << ",\n";
+    out << "    \"number_of_sunpoints\": " << m_number_of_rays << ",\n";
     out << "    \"sun_vector\": ["
         << m_sun_vector[0] << ", " << m_sun_vector[1] << ", " << m_sun_vector[2] << "],\n";
     out << "    \"sun_box_edge_a\": " << sun_box_edge_a << ",\n";
@@ -657,7 +630,7 @@ void SolTraceSystem::create_shader_binding_table(){
 void SolTraceSystem::setup_device_buffer()
 {
     // Initialize launch params
-    data_manager->launch_params_H.width = m_num_sunpoints;
+    data_manager->launch_params_H.width = m_number_of_rays;
     data_manager->launch_params_H.height = 1;
     data_manager->launch_params_H.max_depth = MAX_TRACE_DEPTH;
 
@@ -693,6 +666,74 @@ void SolTraceSystem::setup_device_buffer()
     CUDA_CHECK(cudaMemset(data_manager->launch_params_H.sun_dir_buffer, 0, sun_dir_size));
 
     data_manager->updateLaunchParams();
+}
+
+// Collects results from device buffer
+// only keeps rays that hit elements
+void SolTraceSystem::get_buffer_results(std::vector<float4>& hp_vec, std::vector<int>& raynumber_vec,
+    std::vector<int>& element_id_vec, std::vector<uint8_t>& hit_type_vec)
+{
+    const int max_depth = data_manager->launch_params_H.max_depth;
+    const int num_rays = data_manager->launch_params_H.width * data_manager->launch_params_H.height;
+    const int output_size = data_manager->launch_params_H.width * data_manager->launch_params_H.height * data_manager->launch_params_H.max_depth;
+
+    std::vector<float4> hp_output_buffer(output_size);
+    std::vector<int32_t> element_id_buffer(output_size);
+    std::vector<uint8_t> hit_type_buffer(output_size);
+    CUDA_CHECK(cudaMemcpy(hp_output_buffer.data(), data_manager->launch_params_H.hit_point_buffer, output_size * sizeof(float4), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(element_id_buffer.data(), data_manager->launch_params_H.element_id_buffer, output_size * sizeof(int32_t), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(hit_type_buffer.data(), data_manager->launch_params_H.hit_type_buffer, output_size * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+
+    // Loop through each buffer slot
+    int ray_number = raynumber_vec.empty() ? 0 : raynumber_vec.back();
+    for (int i = 0; i < output_size; ++i) {
+
+        // Get hit type
+        const uint8_t& hit_type = hit_type_buffer[i];
+
+        // Skip if empty
+        if (hit_type < HitType::HIT_CREATE || hit_type > HitType::HIT_EXIT)
+        {
+            continue;
+        }
+
+        // If new ray, check if previous ray hit anything
+        if (hit_type == HitType::HIT_CREATE)
+        {
+            // Remove last ray if it has no hits
+            if (!hit_type_vec.empty() && hit_type_vec.back() == HitType::HIT_CREATE)
+            {
+                hp_vec.pop_back();
+                raynumber_vec.pop_back();
+                hit_type_vec.pop_back();
+                element_id_vec.pop_back();
+                ray_number--;
+            }
+
+            // New ray
+            ray_number++;
+        }
+
+        // Get hit record and element_id
+        const float4& hit_record = hp_output_buffer[i]; // [depth, pos x, pos y, pos z]
+        const int32_t& element_id = element_id_buffer[i];
+
+        // Collect results
+        hp_vec.push_back(hit_record);
+        raynumber_vec.push_back(ray_number);
+        hit_type_vec.push_back(hit_type);
+        element_id_vec.push_back(element_id);
+    }
+
+    // Remove last ray if it is only CREATE
+    if (!hit_type_vec.empty() && hit_type_vec.back() == HitType::HIT_CREATE) {
+        hp_vec.pop_back();
+        raynumber_vec.pop_back();
+        element_id_vec.pop_back();
+        hit_type_vec.pop_back();
+    }
+
+    return;
 }
 
 void SolTraceSystem::add_element(std::shared_ptr<CspElement> e)

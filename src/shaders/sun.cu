@@ -45,7 +45,7 @@ namespace OptixCSP {
     // Sample a random ray direction within a cone defined by a maximum angle
     __device__ float3 sampleRayDirectionInCone_Pillbox(float3 dir, float half_angle, unsigned int ray_number) {
         curandState rng_state;
-        curand_init(params.sun_dir_seed, ray_number, 0, &rng_state);
+        curand_init(params.sun_dir_seed, ray_number + params.ray_offset, 0, &rng_state);
 
         // Build an orthonormal basis
         float3 w = normalize(dir);
@@ -66,7 +66,7 @@ namespace OptixCSP {
 
     __device__ float3 sampleRayDirectionInCone_Gaussian(float3 dir, float half_angle, unsigned int ray_number) {
         curandState rng;
-        curand_init(params.sun_dir_seed, ray_number, 0, &rng);
+        curand_init(params.sun_dir_seed, ray_number + params.ray_offset, 0, &rng);
 
         // Build an orthonormal basis
         float3 w = normalize(dir);
