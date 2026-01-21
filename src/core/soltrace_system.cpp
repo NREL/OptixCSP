@@ -219,6 +219,7 @@ bool SolTraceSystem::read_st_input(const char* filename) {
 	if (!fp)
 	{
     	printf("failed to open system input file\n");
+        return false;
 	}
 
 	if ( !read_system( fp ) )
@@ -326,6 +327,7 @@ void SolTraceSystem::write_simulation_json(const std::string& filename) {
 
     if (receiver_indices.size() == 0) {
         std::cerr << "Error: No receiver found in the system. Cannot write simulation JSON." << std::endl;
+        return;
     }
     if (receiver_indices.size() > 1) {
 		std::cerr << "Error: More than one receiver found in the system. Luning needs to implement this!" << std::endl;

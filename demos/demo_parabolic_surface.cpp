@@ -80,6 +80,7 @@ int main(int argc, char* argv[]) {
 
 	auto receiver_surface = std::make_shared<SurfaceFlat>();
 	e2->set_surface(receiver_surface);
+    e2->set_receiver(true);
 
 	system.add_element(e2); // Add the receiver to the system
 
