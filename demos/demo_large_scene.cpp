@@ -13,16 +13,20 @@ int main(int argc, char* argv[]) {
 
     // setup command line input, parabolic? sun shape on? num of rays
 
-    if (argc != 4) {
-		std::cout << "Usage: " << argv[0] << " <parabolic?> <use_sun_shape?> <num_rays>" << std::endl;
-		return 1;
+    bool cmd = false;
+    if (cmd)
+    {
+        if (argc != 4) {
+            std::cout << "Usage: " << argv[0] << " <parabolic?> <use_sun_shape?> <num_rays>" << std::endl;
+            return 1;
+        }
+        // Parse command line arguments
+        // parabolic flag (1 for true, 0 for false)
+        parabolic = bool(std::stoi(argv[1]));
+        use_sun_shape = bool(std::stoi(argv[2]));
+        num_rays = std::stoi(argv[3]);
     }
-	// Parse command line arguments
-	// parabolic flag (1 for true, 0 for false)
-	parabolic = bool(std::stoi(argv[1]));
-	use_sun_shape = bool(std::stoi(argv[2]));
-	num_rays = std::stoi(argv[3]);
-
+    
     // Create the simulation system.
     SolTraceSystem system(num_rays, num_rays * 100);
 
@@ -34,7 +38,11 @@ int main(int argc, char* argv[]) {
 		stinput_file = "../data/large-system-flat-heliostats-cylindrical.stinput"; // Default stinput file name
     }
 
-    system.read_st_input(stinput_file);
+    if (!system.read_st_input(stinput_file))
+    {
+        std::cout << "Error reading stinput file" << std::endl;
+        return 1;
+    }
 
     // set up sun angle 
     double sun_angle = 0;
